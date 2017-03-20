@@ -1,0 +1,347 @@
+#include <iostream>
+using namespace std;
+#include <math.h>
+#include "SimpleCool.H"
+
+
+void Cool_function(REAL ei, REAL dens, REAL &cool_sum)  
+{
+    // What is returned:
+    cool_sum = 0.0;
+    
+    if(ei <= 0.0){
+      cout << "entering Cool_function with negative ei =  " << ei << endl;
+      return;
+    }
+    
+    double kb = 1.38e-16;
+    double gamma = 5.0/3.0;
+    double mu = 1.3;
+    double yhe = 0.08;
+    double mh = 1.67e-24;
+    double naterm, tmp;
+    
+    naterm = dens / mh / (1.0 + 4.0*yhe);
+    tmp = (gamma-1.0) * ei * mh * mu / kb;
+    
+    // simple optically thin cooling from Kim & Ostriker (for testing purposes):                            
+    cool_sum = (2.0e-19 * exp(-1.184e5 / (tmp + 1000.0)) + 2.8e-28 * pow(tmp,0.5) * exp(-92.0 / tmp))*naterm*naterm ;
+    cool_sum = cool_sum - 2.0e-26 * 0.2 * naterm; 
+
+
+    // Need to make cooling negative and heating positive. And convert volumetric -> specific:
+    cool_sum = -cool_sum / dens;
+
+
+};
+
+
+
+
+// Rosenbrock ODE semi-implicit method for a single variable 
+// (specific internal energy in our case)
+void StepMeSingle(REAL &y, REAL &dydx, REAL &x,REAL htry,REAL &hdid,REAL &hnext,
+                  REAL &yscal, void (derivs)(REAL,REAL,REAL&),
+                  int &jcounts,REAL dens, REAL escale)
+{
+
+    
+    int i,j,jtry;
+    
+    int TryMax = 100;
+    
+    REAL a21 = 2.0e0, a31 = 48.0e0/25.0e0, a32 = 6.0e0/25.0e0, c21 = -8.0e0, c31 = 372.0e0/25.0e0, c32 = 12.e0/5.0e0, c41 = -112.0e0/125.0e0,   c42 = -54.0e0/125.0e0, c43 = -2.0e0/5.0e0,   c1x = 1.0e0/2.0e0, c2x = -3.0e0/2.0e0,  c3x = 121.0e0/50.0e0, c4x = 29.0e0/250.0e0, a2x = 1.0e0, a3x = 3.0e0/5.0e0;
+    
+    REAL eps = 1.0e-4 * escale;
+    
+    // Original values (needed if step fails)
+    REAL xsav,ysav,dysav;
+    ysav = y;
+    dysav = dydx/escale;
+    xsav = x;
+    
+    
+    // Get the dense Jacobian
+    REAL dfdy;
+    // Jacobian(xsav,ysav,dfdy,ratraw,rpar);
+    // Compute numerical jacobian of e here
+    REAL yr, yl, dydxr, dydxl;
+    REAL fr = 1.0 + 1.0e-2;
+    REAL fl = 1.0 - 1.0e-2;
+    yr = y * fr * escale;
+    yl = y * fl * escale;
+    derivs(yr,dens,dydxr);
+    derivs(yl,dens,dydxl);
+    dfdy = (dydxr - dydxl) / (yr - yl);
+    ///
+    
+    REAL h = htry;
+    
+    
+    // Needed for matrix solve
+    REAL dmat;
+    REAL av;
+    REAL bb;
+    
+    
+    REAL gamf = 0.5;
+    // Solve equations loop
+    for(jtry=1;jtry<TryMax;jtry++)
+    {
+        
+        
+        // Form the matrix
+        REAL xx = 1.0/h/gamf;
+        
+	dmat = -dfdy;
+	dmat = xx + dmat;
+        
+        
+        // Set up and solve RHS for g1
+        REAL g1;
+        
+	g1 =  dysav;
+	av = dmat;
+	bb = g1;
+	
+	g1 = bb/av;
+
+	y = ysav + a21 * g1;
+        
+        // Set up and solve RHS for g2
+        x = xsav + a2x * h ;
+        REAL g2;
+       
+        derivs(y*escale,dens,dydx); 
+	dydx = dydx / escale;
+
+	g2 = dydx + c21 * g1 / h;
+	av = dmat;
+	bb = g2;
+        
+	g2 = bb/av;
+        
+	y = ysav + a31 * g1 + a32 * g2;
+        
+        
+        // Set up and solve RHS for g3
+        x = xsav + a3x*h;
+        REAL g3;
+        derivs(y*escale,dens,dydx);
+	dydx = dydx / escale;
+
+	g3 = dydx + (c31*g1 + c32*g2)/h;
+	av = dmat;
+	bb = g3;
+
+	g3 = bb/av;
+	
+        // And finally, g4
+        REAL g4;
+	g4 = dydx + (c41*g1 + c42*g2 + c43*g3) / h;
+	av = dmat;
+	bb = g4;
+
+	g4 = bb/av;
+        
+        
+        // Compute 3rd and 4th order estimates for y
+        REAL err;
+        double b1 = 19.0e0/9.0e0, b2 = 1.0e0/2.0e0,
+        b3 = 25.0e0/108.0e0, b4 = 125.0e0/108.0e0;
+        double e1 = 17.0e0/54.0e0, e2 = 7.0e0/36.0e0,
+        e3 = 0.0, e4 = 125.0e0/108.0e0;
+        
+	y = ysav + b1*g1 + b2*g2 + b3*g3 + b4*g4;
+	err = e1*g1 + e2*g2 + e3*g3 + e4*g4;
+        
+        
+        // Time advances
+        x = xsav + h;
+        
+        if(x==xsav)
+        {
+            // Something has gone wrong
+            cout << "ERROR: Uh oh, h=0 in temp ODE" << endl;
+	    cout << "h = " << h << endl;
+	    cout << "htry = " << htry << endl;
+	    cout << "ysav = " << endl;
+	    cout << i << " " << ysav << endl;
+	    cout << "dysav = " << endl;
+	    cout << i << " " << dysav << endl;
+        }
+        
+        
+        // Determine the scaled accuracy
+        REAL errmax = fabs(err/yscal) / eps;
+       
+        
+        REAL safety = 0.9, grow= 1.5, pgrow= -0.25, shrnk= 0.5, pshrnk= -1.0/3.0;
+        REAL errcon = 0.1296;
+        if(errmax <= 1.0) // All went well
+        {
+            hdid = h;
+            if(errmax > errcon) hnext = safety*h*pow(errmax,pgrow);
+            else hnext = grow*h;
+            jcounts = jcounts+jtry;
+            
+            if(jcounts>400000)
+            {
+                // Why is this taking so long?!
+                cout << "Jcounts is too high in RS (jcounts="<<jcounts<<")" << endl;
+            }
+            
+	   
+            return;
+            
+        }
+        else // Error too large, gots to try again
+        {
+	  
+            hnext = safety*h*pow(errmax,pshrnk);
+	    //if(y <= 0.0) hnext = shrnk*fabs(h);
+	    //cout << "error too large in stem me single! " << h << " " << hnext << endl;
+            double hsign = 1.0;
+            if(h<0) hsign = -1.0;
+            if(h<0) cout << "ERROR: hsign is < 0?! in RS" << endl; // should never happen
+            h = hsign*max(fabs(hnext),shrnk*fabs(h));
+            //cout << "Failed step " << htry << " " << h << " " << hnext << " " << hdid << " " << y << " " << errmax << endl;
+            
+            
+        }
+        
+       
+    } // End of solve equation loop
+
+    // should never get here
+    cout << "ERROR: Too many step tries in RS (jtry ="<<jtry<<")" <<endl;
+};
+
+
+
+void CoolDriver(double &ei_in, double dens, double dt_in)
+{
+
+  double ei = ei_in;
+  double dt = dt_in;
+  double timestep, tempDT;
+  double sdot;
+
+
+  timestep = dt;
+  Cool_function(ei,dens,sdot);
+  tempDT = 0.1 * ei / fabs(sdot);
+  if(tempDT < timestep) timestep = tempDT;
+  
+  while(dt>0)
+    {
+
+      ei = Cool_gas(ei,dens,timestep);
+      
+      dt = dt - timestep;
+      timestep = dt;
+      
+      Cool_function(ei,dens,sdot);
+      tempDT = 0.1 * ei / fabs(sdot);
+      if(tempDT < timestep) timestep = tempDT;
+
+    }
+
+  ei_in = ei;
+
+};
+
+
+
+
+//void Cool_gas(REAL* eosIn, REAL* ymass, REAL* ratraw, double* rpar, double dt)
+double Cool_gas(REAL ei, REAL dens, REAL dt)
+{
+    
+    double dtHold = dt;
+    double sdot;
+    double dtmax;
+    double escale;
+    double eold;
+    double sdotold;
+
+
+    int nstep = 0;
+
+    Cool_function(ei,dens,sdot);
+    
+    int jcounts = 0;
+    double firstDt, endT, tempDt;
+    double hdid, hnext, h;
+    double x=0;
+    int stepMax = 100000;
+    REAL odescal = 1.0e-6;
+    REAL yscal, ei0, eis;
+    
+    escale = ei;
+    ei0 = ei;
+    firstDt = dtHold;
+    tempDt = 0.1 * ei / fabs(sdot);
+    if(tempDt < firstDt) firstDt = tempDt;
+    h = firstDt;
+    eis = ei / escale;
+    while(dtHold > 0.0){
+      
+    yscal = max(odescal,fabs(eis));
+    hdid=0;
+    hnext=0;
+    eold = eis*escale;
+    sdotold = sdot;
+    for(int n=0;n<10;n++){
+      StepMeSingle(eis,sdot,x,h,hdid,hnext,yscal,Cool_function,jcounts,dens,escale);
+
+
+      if(eis>0.0) break;
+      h=h/2.0;
+      hdid=0.0;
+      hnext=0.0;
+      eis = eold/escale;
+      sdot = sdotold;
+      
+
+      if(n > 5){
+	cout << "more than 5 neg result iterations of step me single. probably not right..." << " " << eis << endl;
+      }
+      
+    }
+    if(hdid > h){
+      cout << "hdid greater than h in step me single! not OK: " << hdid << " " << h << endl;
+    }
+
+    
+    if(eis <= 0.0 || hdid == 0.0) {
+      cout << "negative ei produced by stepmesingle! or hdid=0, " << eis*escale << endl;
+      cout << "input sdot = " << sdot << endl;
+      cout << "eold = " << eold << endl;
+      cout << "escale = " << escale << endl;
+      cout << "jcounts = " << jcounts << endl;
+      cout << "attempted timestep = " << h << endl;
+      cout << "acahieved timestep = " << hdid << endl;
+    }
+
+    
+    dtHold = dtHold - hdid;
+    if(dtHold < 0.0){
+      cout << "dthold < 0.0 should never be here: " << dtHold << " " << hdid << " " << h << endl;
+      cout << "original dt = " << dt << endl;
+      cout << "x = " << x << endl;
+    }
+    
+    h = min(dtHold,hnext);
+    Cool_function(eis*escale,dens,sdot);
+ 
+  }
+
+    return eis*escale;
+
+                         
+};
+
+
+
+
