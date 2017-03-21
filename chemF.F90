@@ -275,8 +275,21 @@ end subroutine co_shielding
 
 
 
-
-
+!! in:
+!! yc = CI abundance
+!! ycp = CII abundance
+!! yo = OI abundance
+!! yh = helium abundance
+!! ye = electron abundance
+!! yhp = H+ abundance
+!! yh2 = H2 abundance
+!! note: abundances defined as (number density species) / (number density H nuclei)
+!! temp = gas temperature
+!! nh = number density of hydrogen nuclei
+!! NHtot = Effective shielding column density, only relevant 
+!! if fine_structure_line_opacity = true
+!! out:
+!! lambda_fs = sum of CII, CI, and OI cooling rates in erg/s/cm^3
 subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot, lambda_fs)
 
   implicit none
