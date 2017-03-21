@@ -1,15 +1,21 @@
-#include "pluto.h"
+
 #include "stdlib.h"
 
-#if DO_CHEMISTRY == PRIMORDIAL || DO_CHEMISTRY == CONTEMPORARY
+
+#define CONTEMPORARY 2
+#define PRIMORDIAL 3
+#define SIMPLEMETAL 4
+// must define DO_CHEMISTRY as one of the above
+#define DO_CHEMISTRY CONTEMPORARY
+
+
 #include "ChemExternal.H"
-#endif
 
 
 #define real double
 #define REAL double
 
-//ARS defining a few basic constants
+//defining a few basic constants
 #define mh  1.67e-24
 #define eV 1.60219e-12
 #define kboltz 1.3806e-16
@@ -18,11 +24,10 @@
 #if DO_CHEMISTRY == PRIMORDIAL
 
 // Total number of tracked species:
-///ARS changed NPECIES and NINT to be set based on whatever "chemnspecies" was set to upon compilation
-#define NSPECIES CHEM_NSPECIES
+#define NSPECIES 16
 
 // Total number of *integrated* species:
-#define NINT CHEM_NSPECIES-1
+#define NINT 15
 #define NREACTION 120
 
 #endif // #if NETWORK == PRIMORDIAL
@@ -46,57 +51,27 @@
 #endif // #if NETWORK == CONTEMPORARY
 
 
-void ChemDriver(double, double&, double&, double*, double*);
+
+#if DO_CHEMISTRY == SIMPLEMETAL
+
+#define NSPECIES      18
+#define NINT          17
+#define NCREACTION   200
+#define NPREACTION   30
+#define NREACTION   100
+
+#define YMETALS     1.0e-7
+#define YOXYGEN     3.2e-4
+#define YCARBON     1.4e-4
+#define YHELIUM     0.08
+
+#endif
+
+
+
 
 namespace ChemNS {
-//ARS moved species array definitions from here to ChemExternal.H    
-  // non tracked species must come last
-/*    enum Species
-    { 
-#if DO_CHEMISTRY == PRIMORDIAL
-        iHP   = 0,
-        iH    = 1,
-        iHM   = 2,
-        iH2P  = 3,
-        iH2   = 4,
-        iDP   = 5,
-        iD    = 6,
-        iDM   = 7,
-        iHDP  = 8,
-        iHD   = 9,
-        iD2P  = 10,
-        iD2   = 11,
-        iHEP  = 12,
-        iHE   = 13,
-        iHEPP = 14,
-        iELEC = 15
-#endif
 
-
-#if DO_CHEMISTRY == CONTEMPORARY
-	iH   = 0,
-        iHM    = 1,
-        iH2   = 2,
-	iHP   = 3,
-        iH2P  = 4,
-        iH3P   = 5,
-        iHE   = 6,
-        iHEP    = 7,
-        iC   = 8,
-        iCP  = 9,
-        iO   = 10,
-        iCHX  = 11,
-        iOHX   = 12,
-        iHCOP  = 13,
-	iCO  = 14,
-        iM   = 15,
-        iMP = 16,
-	iELEC = 17
-#endif
-
-    };
-  */
-  
     enum Reactions{
         
         iR001 = 0, iR002, iR003, iR004, iR005, iR006, iR007, iR008, iR009, iR010,

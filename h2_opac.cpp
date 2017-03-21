@@ -1,4 +1,6 @@
 #include "h2_opac.dat"
+#include "mol_data.h"
+#include "atomic_data.h"
 
 void compute_h2_opacity(double temp, double N_H2_eff, double &H2_opacity_correction)
 {

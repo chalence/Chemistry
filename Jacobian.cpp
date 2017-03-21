@@ -4,14 +4,10 @@
 using namespace std;
 
 #include "ChemGlobals.H"
+#include "ChemBurner.H"
 using namespace ChemNS;
 
 #include <math.h>
-
-//REAL max(REAL x, REAL y) { if(x>y) return x; else return y; }
-//REAL min(REAL x, REAL y) { if(x<y) return x; else return y; }
-
-void fill_species(REAL* ymass, REAL* ytot);
 
 
 void Jacobian(REAL x,REAL* yt,REAL (*dfdy)[NINT], REAL* ratraw, double* rpar)

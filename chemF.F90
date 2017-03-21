@@ -633,8 +633,8 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
        ng20,ng21,ng10,g2_CI/g0_CI,g2_CI/g1_CI,g1_CI/g0_CI,t20,t21,t10,f0,f1,f2,error)
   if(error) then
      !print*, "error out of three level system CI. y=", y
-     print*, "temp = ", temp
-     stop
+     !print*, "temp = ", temp
+     !stop
   endif
 
   if(fine_structure_line_opacity) then
@@ -675,10 +675,10 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
   enddo
 
   if(.not. converged) then
-     print*, "CI did not converge! wtf"
+     !print*, "CI did not converge! wtf"
      !print*, "y = ", y
-     print*, "temp = ", temp
-     stop
+     !print*, "temp = ", temp
+     !stop
   endif
   endif
 
@@ -723,7 +723,7 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
   if(error) then
      !print*, "error out of three level system OI. y=", y
      !print*, "temp = ", temp
-     stop
+     !stop
   endif
 
   if(fine_structure_line_opacity) then
@@ -742,7 +742,7 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
      if(error) then
         !print*, "error out of three level system. y=", y
         !print*, "temp = ", temp
-        stop
+        !stop
      endif
 
 
@@ -762,12 +762,11 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
      if(converged) exit
      
      !print*, i
-     
+      
   enddo
-
   if(.not. converged) then
-     !print*, "OI did not converge! wtf"
-     stop
+     !write(*,*), "OI did not converge! wtf"
+     !stop
   endif
   endif
 
@@ -779,7 +778,6 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
   
   
   lambda_fs = (lambda_Cplus + lambda_C + lambda_O) * nh
-
  
  return
  
@@ -844,8 +842,8 @@ subroutine two_level_system(t,a,c,b,ng,gfac,e,f1,f0)
   f0 = 1.0 - f1
   
   if(f0 .lt. 0.0) then
-     print*, "problem in two level system. negative level pop", f1, f0
-     stop
+     !print*, "problem in two level system. negative level pop", f1, f0
+     !stop
   endif
      
   return
@@ -895,7 +893,7 @@ subroutine three_level_system(a20,a21,a10,c20,c21,c10,b20,b21,b10, &
 
   
   if(f0 .lt. 0.0 .or. f1 .lt. 0.0 .or. f2 .lt. 0.0) then
-     print*, "problem in three level system. negative level pop", f0, f1, f2
+     !print*, "problem in three level system. negative level pop", f0, f1, f2
      error = .true.
   endif
   

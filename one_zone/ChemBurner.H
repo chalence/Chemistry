@@ -97,8 +97,8 @@ void GetNetworkRates(const REAL Temp, const REAL Den, REAL* ys, REAL* RatRaw, do
     //double fsshd = RadParams[2];
     
     for(i=0;i<NREACTION;i++) RatRaw[i] = 0.0;
-
-    
+ 
+    cout << "in get network raaates...", Temp
     if(Temp < 0.1) {
       cout << "Temp is too low in GetNetworkRates... temp = " << Temp << endl;
       cout << "current ys = " << endl;

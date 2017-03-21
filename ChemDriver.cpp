@@ -3,29 +3,26 @@
 #include <iomanip>
 using namespace std;
 
+#include "ChemGlobals.H"
+
 #include "ChemDriver.H"
+#include "ChemBurner.H"
 using namespace ChemNS;
 
 
-void fill_species(REAL* ymass, REAL* ytot);
 
-void Chem_Burner(REAL dt, REAL* eosIn, REAL* xIn, REAL* xOut, double* rpar);
+double yin_original[NINT];
+double rpar_original[nrpar];
+double ei_original;
+double dt_original;
+double dens_original;
 
-void GetNetworkRates(const REAL Temp, const REAL Den,REAL* ys, REAL* RatRaw, double* rpar);
 
-
-REAL yin_original[NINT];
-REAL rpar_original[nrpar];
-REAL ei_original;
-REAL dt_original;
-REAL dens_original;
-
-/*
-REAL xIn[NINT] = {0.0};
-REAL yIn[NINT] = {0.0};
-REAL yOut[NINT] = {0.0};
-REAL ytot[NSPECIES];
-*/
+extern double yin_original[NINT];
+extern double rpar_original[nrpar];
+extern double ei_original;
+extern double dt_original;
+extern double dens_original;
 
 void ChemDriver(const double &dt_in, const double &den_in, double &ei_in, double &gamma_here, double* y_fromOrion, double* rpar)
 {
@@ -34,12 +31,12 @@ void ChemDriver(const double &dt_in, const double &den_in, double &ei_in, double
     
     // Initialize arrays (xIN will be read in, actually)
 
-REAL xIn[NINT] = {0.0};
-REAL yIn[NINT] = {0.0};
-REAL yOut[NINT] = {0.0};
-REAL ytot[NSPECIES];
+double xIn[NINT] = {0.0};
+double yIn[NINT] = {0.0};
+double yOut[NINT] = {0.0};
+double ytot[NSPECIES];
 
-    REAL eosIn[6];  // Density, Temperature, EngDen, Pressure, Metal Fraction, gamma
+    double eosIn[6];  // Density, Temperature, EngDen, Pressure, Metal Fraction, gamma
 
     // save original values for use in AbortChem
     for(i=0;i<NINT;i++) yin_original[i] = y_fromOrion[i];
@@ -55,15 +52,15 @@ REAL ytot[NSPECIES];
     // CTSS: deprecated, J21 is now in rpar array
     // and shielding factors should be determined consistently
     //bool chem_cc_case = 1;
-    //REAL fssh2 = 1.0;
-    //REAL fsshd = 1.0;
-    //REAL J21 = 0.0;  // J21 radiation
-    //REAL RadParams[3] = {J21,fssh2,fsshd};
+    //double fssh2 = 1.0;
+    //double fsshd = 1.0;
+    //double J21 = 0.0;  // J21 radiation
+    //double RadParams[3] = {J21,fssh2,fsshd};
     
     
     // Load from Orion2
     for(i=0;i<NINT;i++) xIn[i] = y_fromOrion[i];
-    REAL dt = dt_in;
+    double dt = dt_in;
     eosIn[0] = den_in;
     eosIn[1] = 0.0; //Temp
     eosIn[2] = ei_in;
@@ -104,7 +101,7 @@ REAL ytot[NSPECIES];
  
     // yIn = abundance array of tracked species (size NINT)
     // ytot = abundance array of ALL species (including electrons, size NINT+1)
-    //REAL ytot[NSPECIES];
+    //double ytot[NSPECIES];
     for(i=0;i<NINT;i++)
     {
       yIn[i] = xIn[i] ; 
@@ -166,6 +163,89 @@ REAL ytot[NSPECIES];
 
 }
 
+
+
+void Chem_EOS(int mode, double* eosIn, double* y, int nSpec, int loc)
+{
+    //double mh = 1.67e-24;
+    //double kb = 1.38e-16;
+    double yhetot, fac;
+    
+    double den,temp,ei,pres,gc;
+    den=eosIn[0];
+    temp=eosIn[1];
+    ei=eosIn[2];
+    pres=eosIn[3];
+    gc=eosIn[5];
+    
+    // CTSS: P = ntot * kb * T = rho * kb * T / (mu * mh)
+    //       P = E * (gamma-1), where E = volumetric energy density
+    //       P = ei / rho * (gamma-1), where ei = specific energy density
+    //       To a very good approximation, ntot = (1 + yhe + ye - yh2) * nh
+    //       where nh is the number density of hydrogen nuclei given by
+    //       nh = rho / (mh * (1.0 + 4*yhe)) 
+    //       ...which basically describes what's being done below:
+
+    yhetot = y[iHE] + y[iHEP];
+    fac = (1.0 + yhetot + y[iELEC] - y[iH2]) * kboltz / ((1.0 + 4.0*yhetot) * mh * (gc-1.0));
+
+    if(mode==1) // determines ei and pressure from rho and T
+    {
+      ei = fac * temp;
+      pres = (gc-1.0) * den * ei;
+      
+      eosIn[0]=den;
+      eosIn[1]=temp;
+      eosIn[2]=ei;
+      eosIn[3]=pres;
+    }
+    else if(mode==2) //determines T and P from rho and ei
+    {
+      temp = ei / fac;
+      pres = (gc-1.0) * den * ei;
+      
+      eosIn[0]=den;
+      eosIn[1]=temp;
+      eosIn[2]=ei;
+      eosIn[3]=pres;
+    }
+    else if(mode==3) // determines T and ei from rho and P
+    {
+      // seems like this mode is never used...
+      cout << "EOS mode 3 not done, and never really needed..." << endl;
+      AbortChem();
+    }
+    else // doesn't change anything... not good.
+    {
+      cout << "Bad option in Chem_EOS " << mode << endl;
+      AbortChem();
+        
+    }
+    
+    if(eosIn[1] != eosIn[1] || eosIn[2] != eosIn[2]) {
+      cout << "nan after EOS! mode = " << mode << endl;
+      cout << "loc = " << loc << endl;
+      cout << "eos[0] = " << eosIn[0] << endl;
+      cout << "eos[1] = " << eosIn[1] << endl;
+      cout << "eos[2] = " << eosIn[2] << endl;
+      cout << "gc = " << gc << endl;
+      AbortChem();
+    }
+    
+    if(temp > 1.0e9){
+      cout << "temp too high after EOS. temp = " << temp << endl;
+      cout << "mode = " << mode << endl;
+      cout << "loc = " << loc << endl;
+      cout << "eos[0] = " << eosIn[0] << endl;
+      cout << "eos[1] = " << eosIn[1] << endl;
+      cout << "eos[2] = " << eosIn[2] << endl;
+      cout << "yh2 = " << y[iH2] << endl;
+      cout << "yie = " << y[iELEC] << endl;
+      AbortChem();
+    
+    }
+
+}
 
 
 
