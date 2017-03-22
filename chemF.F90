@@ -788,7 +788,7 @@ subroutine fine_structure_cooling(yc, ycp, yo, yh, ye, yhp, yh2, temp, nh, NHtot
            + b10 * ((1.0 + ng10) * f1 - (g1_OI / g0_OI) * ng10 * f0) * A10_OI * E10_OI) * yo
  
 
-  
+  !print*, "in fsc..."
   
   lambda_fs = (lambda_Cplus + lambda_C + lambda_O) * nh
  
